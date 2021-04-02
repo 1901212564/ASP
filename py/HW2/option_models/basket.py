@@ -77,11 +77,7 @@ def basket_price_mc(
         PUT the simulation of the geometric brownian motion below
         '''
         prices = np.zeros((len(forward[:,None]),n_samples))
-        
-        # vol=vol/spot
-        # cov_m = vol * cor_m * vol[:,None]
-        # chol_m = np.linalg.cholesky(cov_m)
-        
+
         for i in range(len(prices)):
             prices[i,:] = (forward[:,None][i] * np.exp(-1/2 * texp * np.diagonal(cov_m)[i] + np.sqrt(texp) * chol_m[i,:] @ znorm_m)).T
     else:
@@ -117,8 +113,6 @@ def basket_price_norm_analytic(
     cov_m = vol * cor_m * vol[:,None]
     basket_vol = np.sqrt(weights @ cov_m @ weights)
     return normal_formula(strike, basket_spot, basket_vol, texp, intr, divr, cp)
-
-def spread_price_kirk(strike, spot, vol, texp, corr, intr=0, divr=0, cp=1):
 
 def spread_price_kirk(strike, spot, vol, texp, corr, intr=0, divr=0, cp=1):
     div_fac = np.exp(-texp*divr)
