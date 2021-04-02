@@ -111,4 +111,4 @@ def spread_price_kirk(strike, spot, vol, texp, corr, intr=0, divr=0, cp=1):
     price = disc_fac * bsm_formula(forward[1]+strike, forward[0], vol_r, texp, cp=cp)
 
     return price
-lalala
+lala
