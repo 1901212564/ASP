@@ -58,21 +58,21 @@ class ModelBsmMC:
         dt = 0.01
         time_num = int(texp//dt)
         path_num = 10000
-        stock_price_paths = np.zeros((time_num+1, path_num))
-        stock_price_paths[0,:] = spot
-        sigma_paths = np.zeros((time_num+1, path_num))
-        sigma_paths[0,:] = self.sigma
+        stockpath = np.zeros((time_num+1, path_num))
+        stockpath[0,:] = spot
+        sigmapath = np.zeros((time_num+1, path_num))
+        sigmapath[0,:] = self.sigma
       
         for i in range(time_num):
             t_row = i+1
             z = np.random.randn(path_num)
             x = np.random.randn(path_num)
             w = self.rho*z+np.sqrt(1-self.rho**2)*x
-            sigma_paths[t_row,:] = sigma_paths[i,:]*np.exp(self.vov*np.sqrt(dt)*z-0.5*self.vov**2*dt)
-            stock_price_paths[t_row,:] = stock_price_paths[i,:]*np.exp(sigma_paths[i,:]*np.sqrt(dt)*w-0.5*sigma_paths[i,:]**2*dt)
-        self.stock_price_paths = stock_price_paths
-        self.sigma_paths = sigma_paths
-        self.option_prices = np.fmax(stock_price_paths[-1,:].reshape(1,-1)-strike.reshape(-1,1),0).mean(axis=1)
+            sigmapath[t_row,:] = sigmapath[i,:]*np.exp(self.vov*np.sqrt(dt)*z-0.5*self.vov**2*dt)
+            stockpath[t_row,:] = stockpath[i,:]*np.exp(sigmapath[i,:]*np.sqrt(dt)*w-0.5*sigmapath[i,:]**2*dt)
+        self.stockpath = stockpath
+        self.sigmapath = sigmapath
+        self.option_prices = np.fmax(stockpath[-1,:].reshape(1,-1)-strike.reshape(-1,1),0).mean(axis=1)
         return self.option_prices
     
 '''
@@ -113,20 +113,21 @@ class ModelNormalMC:
         dt = 0.01
         time_num = int(texp // dt)
         path_num = 10000
-        stock_price_paths = np.zeros((time_num + 1, path_num))
-        stock_price_paths[0, :] = spot
-        sigma_paths = np.zeros((time_num + 1, path_num))
-        sigma_paths[0, :] = self.sigma
+        stockpath = np.zeros((time_num + 1, path_num))
+        stockpath[0, :] = spot
+        sigmapath = np.zeros((time_num + 1, path_num))
+        sigmapath[0, :] = self.sigma
+       
         for i in range(time_num):
             t_row = i + 1
             z = np.random.randn(path_num)
             x = np.random.randn(path_num)
             w = self.rho * z + np.sqrt(1 - self.rho ** 2) * x
-            sigma_paths[t_row, :] = sigma_paths[i, :] * np.exp(self.vov * np.sqrt(dt) * z - 0.5 * self.vov ** 2 * dt)
-            stock_price_paths[t_row, :] = stock_price_paths[i, :] + sigma_paths[i, :] * np.sqrt(dt) * w
-        self.stock_price_paths = stock_price_paths
-        self.sigma_paths = sigma_paths
-        self.option_prices = np.fmax(stock_price_paths[-1, :].reshape(1, -1) - strike.reshape(-1, 1), 0).mean(axis=1)
+            sigmapath[t_row, :] = sigmapath[i, :] * np.exp(self.vov * np.sqrt(dt) * z - 0.5 * self.vov ** 2 * dt)
+            stockpath[t_row, :] = stockpath[i, :] + sigmapath[i, :] * np.sqrt(dt) * w
+        self.stockpath = stockpath
+        self.sigmapath = sigmapath
+        self.option_prices = np.fmax(stockpath[-1, :].reshape(1, -1) - strike.reshape(-1, 1), 0).mean(axis=1)
         return self.option_prices
 
 '''
@@ -168,8 +169,7 @@ class ModelBsmCondMC:
         if (texp <= 0):
             return disc_fac * np.fmax(cp_sign * (forwards - strikes), 0)
 
-        # floor vol_std above a very small number
-        vol_std = np.fmax(vol * np.sqrt(texp), 1e-32)
+        vol_std = np.fmax(vol * np.sqrt(texp), 1e-16)
         vol_std = vol_std.reshape(1,-1)
 
         d1 = np.log(forwards/strikes) / vol_std + 0.5 * vol_std
@@ -191,18 +191,18 @@ class ModelBsmCondMC:
         dt = 0.01
         time_num = round(texp / dt)
         path_num = 10000
-        stock_price_paths = np.zeros((time_num + 1, path_num))
-        stock_price_paths[0, :] = spot
-        sigma_paths = np.zeros((time_num + 1, path_num))
-        sigma_paths[0, :] = self.sigma
+        stockpath = np.zeros((time_num + 1, path_num))
+        stockpath[0, :] = spot
+        sigmapath = np.zeros((time_num + 1, path_num))
+        sigmapath[0, :] = self.sigma
       
         for i in range(time_num):
             t_row = i + 1
             z = np.random.randn(path_num)
-            sigma_paths[t_row, :] = sigma_paths[i, :] * np.exp(self.vov * np.sqrt(dt) * z - 0.5 * self.vov ** 2 * dt)
-        self.sigma_paths = sigma_paths
-        self.I_T = spint.simps(sigma_paths**2, dx = dt, axis=0)
-        self.stock_prices = spot * np.exp(self.rho/self.vov*(sigma_paths[-1, :]-self.sigma)-
+            sigmapath[t_row, :] = sigmapath[i, :] * np.exp(self.vov * np.sqrt(dt) * z - 0.5 * self.vov ** 2 * dt)
+        self.sigmapath = sigmapath
+        self.I_T = spint.simps(sigmapath**2, dx = dt, axis=0)
+        self.stock_prices = spot * np.exp(self.rho/self.vov*(sigmapath[-1, :]-self.sigma)-
                                           self.rho**2/2*self.I_T)
         self.sigma_bs = np.sqrt((1-self.rho**2)*self.I_T/texp)
         self.option_prices = np.mean(self.bsm_formula(strike,self.stock_prices, texp, self.sigma_bs),axis=1)
@@ -244,8 +244,7 @@ class ModelNormalCondMC:
         if( texp<=0 ):
             return disc_fac * np.fmax( cp_sign*(forwards-strikes), 0 )
 
-        # floor vol_std above a very small number
-        vol_std = np.fmax(vol*np.sqrt(texp), 1e-32)
+        vol_std = np.fmax(vol*np.sqrt(texp), 1e-16)
         vol_std = vol_std.reshape(1,-1)
         d = (forwards-strikes)/vol_std
 
@@ -264,18 +263,18 @@ class ModelNormalCondMC:
         dt = 0.01
         time_num = round(texp / dt)
         path_num = 10000
-        stock_price_paths = np.zeros((time_num + 1, path_num))
-        stock_price_paths[0, :] = spot
-        sigma_paths = np.zeros((time_num + 1, path_num))
-        sigma_paths[0, :] = self.sigma
+        stockpath = np.zeros((time_num + 1, path_num))
+        stockpath[0, :] = spot
+        sigmapath = np.zeros((time_num + 1, path_num))
+        sigmapath[0, :] = self.sigma
       
         for i in range(time_num):
             t_row = i + 1
             z = np.random.randn(path_num)
-            sigma_paths[t_row, :] = sigma_paths[i, :] * np.exp(self.vov * np.sqrt(dt) * z - 0.5 * self.vov ** 2 * dt)
-        self.sigma_paths = sigma_paths
-        self.I_T = spint.trapezoid(sigma_paths ** 2, dx=dt, axis=0)
-        self.stock_prices = spot + self.rho / self.vov * (sigma_paths[-1, :] - self.sigma)
+            sigmapath[t_row, :] = sigmapath[i, :] * np.exp(self.vov * np.sqrt(dt) * z - 0.5 * self.vov ** 2 * dt)
+        self.sigmapath = sigmapath
+        self.I_T = spint.trapezoid(sigmapath ** 2, dx=dt, axis=0)
+        self.stock_prices = spot + self.rho / self.vov * (sigmapath[-1, :] - self.sigma)
         self.sigma_n = np.sqrt((1 - self.rho ** 2) * self.I_T / texp)
         self.option_prices = np.mean(self.normal_formula(strike, self.stock_prices, texp, self.sigma_n), axis=1)
         return self.option_prices
